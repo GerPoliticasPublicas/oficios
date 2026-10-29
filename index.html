@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Ofícios v2-13 - GAMPP</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        /* Painel de Controle */
+        .painel-controle { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; border-top: 4px solid #005A9C; }
+        .painel-controle h2 { color: #005A9C; margin-top: 0; font-family: 'Segoe UI', sans-serif; font-size: 1.3em; display: flex; align-items: center; gap: 10px; }
+        .badge-versao { background: #005A9C; color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.5em; vertical-align: middle; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        label { display: block; font-family: 'Segoe UI', sans-serif; font-size: 0.9em; font-weight: 600; margin-bottom: 5px; color: #444; }
+        input[type="text"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95em; font-family: 'Segoe UI', sans-serif; }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 5px; font-family: 'Segoe UI', sans-serif; font-weight: bold; cursor: pointer; font-size: 1em; }
+        .btn-gerar { background: #0B875B; color: white; width: 100%; margin-top: 15px; }
+        .btn-gerar:hover { background: #096b47; }
+        .btn-imprimir { background: #005A9C; color: white; }
+        .btn-copiar { background: #6c757d; color: white; }
+        .btn-limpar { background: #dc3545; color: white; }
+        .btn-voltar { background: #6c757d; color: white; }
+        .aviso { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em; font-family: 'Segoe UI', sans-serif; }
+        
+        /* O Ofício - Formatação conforme PDF */
+        #oficio-area { display: none; background: #fff; padding: 60px 80px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #texto-oficio { font-size: 12pt; line-height: 1.5; text-align: justify; }
+        #texto-oficio p { margin: 0 0 10px 0; }
+        
+        /* Endereçamento */
+        .enderecamento { margin-bottom: 30px; text-align: justify; }
+        .enderecamento p { margin: 0; line-height: 1.6; }
+        .enderecamento .nome-destinatario { font-weight: bold; display: block; margin-top: 0; }
+        
+        /* Assunto + Saudação (alinhado ao corpo do texto) */
+        .assunto-bloco { margin-left: 0px; margin-top: 25px; margin-bottom: 25px; }
+        .assunto-bloco .assunto-titulo { font-weight: bold; display: block; margin-bottom: 20px; }
+        .assunto-bloco .saudacao { display: block; margin-left: 100px; } /* MESMO RECUO DA 1ª LINHA DO CORPO */
+        
+        /* Recuo de parágrafo (primeira linha) */
+        .recuo { text-indent: 100px; margin-bottom: 15px; text-align: justify; }
+        
+        /* Citação (Art. 118) - Recuo total aumentado em 1 + fonte menor + sem espaço entre parágrafos */
+        .citacao { margin-left: 220px; margin-right: 40px; font-size: 10pt; margin-top: 15px; margin-bottom: 15px; text-align: justify; }
+        .citacao p { margin-bottom: 0; }
+        .citacao p:last-child { margin-bottom: 0; }
+        
+        /* Listas - Marcadores com recuo dobrado */
+        ul.lista-oficio { margin-left: 120px; margin-bottom: 15px; padding-left: 20px; }
+        ul.lista-oficio li { margin-bottom: 5px; text-align: justify; }
+        
+        /* Tabela MAPA */
+        .tabela-oficio { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; font-size: 10pt; }
+        .tabela-oficio th, .tabela-oficio td { border: 1px solid #000; padding: 8px; text-align: center; vertical-align: middle; }
+        .tabela-oficio th { background: #e0e0e0; font-weight: bold; }
+        .tabela-oficio td.esquerda { text-align: left; }
+        .tabela-oficio td.center { text-align: center; }
+        
+        /* Fechamento e assinaturas */
+        .fechamento { margin-top: 60px; text-align: center; }
+        .fechamento .despedida { margin-bottom: 80px; text-align: left; text-indent: 100px; }
+        .fechamento .assinatura { margin-bottom: 30px; text-align: center; }
+        .fechamento .assinatura p { margin: 0; }
+        .fechamento .assinatura .nome { font-weight: bold; }
+        
+        @media print {
+            body { background: #fff; padding: 0; }
+            .painel-controle, .botoes-acao { display: none !important; }
+            #oficio-area { box-shadow: none; padding: 0; }
+            #texto-oficio { font-size: 12pt; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Painel de Controle -->
+    <div class="painel-controle" id="painelControle">
+        <h2>🔧 Gerador de Ofícios <span class="badge-versao">v2-13</span></h2>
+        
+        <div class="aviso">
+            ℹ️ <strong>Instruções:</strong> Selecione a unidade e o período. O número do ofício será preenchido automaticamente pelo SEI no momento do cadastro. Os dados do painel <strong>não são perdidos</strong> ao trocar de unidade — só o ofício é regenerado.
+        </div>
+        
+        <div class="grid-2">
+            <div>
+                <label>Unidade Destinatária *</label>
+                <select id="selectUnidade" onchange="aoTrocarUnidade()">
+                    <option value="">Carregando...</option>
+                </select>
+            </div>
+            <div>
+                <label>Período de Monitoramento *</label>
+                <input type="text" id="inputPeriodo" placeholder="Ex: 3º Quadrimestre 2025">
+            </div>
+        </div>
+        
+        <div class="grid-2" style="margin-top: 10px;">
+            <div>
+                <label>Data Limite de Resposta *</label>
+                <input type="text" id="inputDataResposta" placeholder="Ex: 26 de novembro de 2026">
+            </div>
+            <div>
+                <label>Data da Capacitação</label>
+                <input type="text" id="inputDataCapacitacao" value="17 de novembro de 2026">
+            </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 10px;">
+            <div>
+                <label>Prazo para Indicação dos Servidores</label>
+                <input type="text" id="inputPrazoServidores" value="16 de novembro de 2026">
+            </div>
+            <div>
+                <label>Turma 1 (horário)</label>
+                <input type="text" id="inputTurma1" value="8h às 10h">
+            </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 10px;">
+            <div>
+                <label>Turma 2 (horário)</label>
+                <input type="text" id="inputTurma2" value="10h30 às 12h30">
+            </div>
+            <div>
+                <label>Link de Inscrição - Turma 1</label>
+                <input type="text" id="inputLinkTurma1" placeholder="Ex: https://forms.gle/xxxxx">
+            </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 10px;">
+            <div>
+                <label>Link de Inscrição - Turma 2</label>
+                <input type="text" id="inputLinkTurma2" placeholder="Ex: https://forms.gle/yyyyy">
+            </div>
+            <div></div>
+        </div>
+
+        <button class="btn btn-gerar" onclick="gerarOficio()">📄 Gerar Ofício</button>
+    </div>
+
+    <!-- Área do Ofício -->
+    <div id="oficio-area">
+        <div id="texto-oficio"></div>
+        
+        <div class="botoes-acao" style="text-align: center; margin-top: 30px;">
+            <button class="btn btn-imprimir" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+            <button class="btn btn-copiar" onclick="copiarParaSEI()">📋 Copiar para SEI</button>
+            <button class="btn btn-limpar" onclick="limparOficio()">🗑️ Limpar Ofício</button>
+            <button class="btn btn-voltar" onclick="voltarPainel()">← Voltar ao Painel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var URL_GOOGLE = "https://script.google.com/macros/s/AKfycbxYEXyp-QEgzYmiwQ7FdR8M7mpVJ_2rRGUL_J1Aign-mykclYcxxuojzLi7TAIHsA/exec";
+    var TOKEN_ACESSO = "PE-RO-2026-A7F3B9E2C4D8F1A5B6E7C8D9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7A8B9";
+
+    var UNIDADES = ["SEAGRI","SEDEC","DER","SEOSP","SEAS","IDEP","SEDUC","SEFIN","SETIC","SEDAM","SEPAT","SESAU","SESDEC","SEJUS","PC","POLITEC","SETUR"];
+
+    var DADOS = { parametros: {}, oficios: {}, mapa_cadastro: [], mapa_respostas: [] };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch(URL_GOOGLE + "?token=" + encodeURIComponent(TOKEN_ACESSO) + "&acao=carregar_dados_oficio")
+            .then(r => r.json())
+            .then(data => {
+                if (data.result === 'success') {
+                    DADOS = data;
+                    preencherSelectUnidades();
+                    preencherPeriodoPadrao();
+                } else {
+                    alert("Erro ao carregar dados: " + data.message);
+                }
+            })
+            .catch(err => alert("Erro de conexão: " + err.message));
+    });
+
+    function preencherSelectUnidades() {
+        var select = document.getElementById('selectUnidade');
+        select.innerHTML = '<option value="">Selecione a Unidade...</option>';
+        UNIDADES.sort().forEach(function(u) {
+            var opt = document.createElement('option');
+            opt.value = u;
+            opt.textContent = u;
+            if (DADOS.oficios[u]) opt.textContent = u + " ✓";
+            select.appendChild(opt);
+        });
+    }
+
+    function preencherPeriodoPadrao() {
+        var p = DADOS.parametros;
+        if (p.periodo_referencia) document.getElementById('inputPeriodo').value = p.periodo_referencia;
+        document.getElementById('inputDataResposta').value = "26 de novembro de 2026";
+    }
+
+    function aoTrocarUnidade() {}
+
+    function gerarOficio() {
+        var unidade = document.getElementById('selectUnidade').value;
+        var periodo = document.getElementById('inputPeriodo').value.trim();
+        var dataResposta = document.getElementById('inputDataResposta').value.trim();
+        var dataCapacitacao = document.getElementById('inputDataCapacitacao').value.trim();
+        var prazoServidores = document.getElementById('inputPrazoServidores').value.trim();
+        var turma1 = document.getElementById('inputTurma1').value.trim();
+        var turma2 = document.getElementById('inputTurma2').value.trim();
+        var linkTurma1 = document.getElementById('inputLinkTurma1').value.trim();
+        var linkTurma2 = document.getElementById('inputLinkTurma2').value.trim();
+
+        if (!unidade) return alert("Selecione uma unidade.");
+        if (!periodo) return alert("Informe o período de monitoramento.");
+
+        var problemasAtivos = DADOS.mapa_cadastro.filter(p => p.unidade === unidade);
+        var problemasNaoResolvidos = problemasAtivos.filter(function(p) {
+            var respostas = DADOS.mapa_respostas.filter(r => r.unidade === unidade && r.id_mapa === p.id);
+            if (respostas.length === 0) return true;
+            var ultima = respostas[respostas.length - 1];
+            return ultima.status_unidade !== "Resolvido" && ultima.status_unidade !== "Arquivado/Validado";
+        });
+
+        var tabelaMAPA = '';
+        if (problemasNaoResolvidos.length > 0) {
+            tabelaMAPA = `
+                <p class="recuo" style="margin-top: 20px;"><strong>Matriz de Acompanhamento de Problemas e Ameaças (MAPA):</strong></p>
+                <p class="recuo">Conforme monitoramento anterior, os seguintes problemas/ameaças ainda se encontram pendentes de resolução por parte desta Unidade Setorial:</p>
+                <table class="tabela-oficio">
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Problema ou Ameaça</th>
+                            <th>Status Atual</th>
+                            <th>Providência Adotada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            problemasNaoResolvidos.forEach(function(p, idx) {
+                var respostas = DADOS.mapa_respostas.filter(r => r.unidade === unidade && r.id_mapa === p.id);
+                var ultima = respostas[respostas.length - 1];
+                var status = ultima ? ultima.status_unidade : "Não informado";
+                var providencia = ultima ? (ultima.providencia || "-") : "-";
+                tabelaMAPA += `
+                    <tr>
+                        <td class="center">${idx + 1}</td>
+                        <td class="esquerda">${p.problema}</td>
+                        <td class="center">${status}</td>
+                        <td class="esquerda">${providencia}</td>
+                    </tr>
+                `;
+            });
+            tabelaMAPA += `</tbody></table>`;
+        }
+
+        // ============ TEXTO DO OFÍCIO (v2-13) ============
+        var textoOficio = `
+            <div class="enderecamento">
+                <p>as Senhor (a)</p>
+                <p class="nome-destinatario">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</p>
+                <p>Cargo ocupado</p>
+            </div>
+            
+            <div class="assunto-bloco">
+                <span class="assunto-titulo">Assunto: Monitoramento Parcial do Planejamento Estratégico do Estado de Rondônia – Exercício de 2026</span>
+                <br>
+                <span class="saudacao">Senhores(as),</span>
+            </div>
+            
+            <p class="recuo">Com cordiais cumprimentos, considerando as competências da Secretaria de Estado do Planejamento, Orçamento e Gestão – SEPOG no acompanhamento dos projetos, resultados e desafios do Planejamento Estratégico Estadual, conforme disposto nos incisos XXII do art. 118 da Lei Complementar nº 965, de 20 de novembro de 2017:</p>
+            
+            <div class="citacao">
+                <p>Art. 118. À Secretaria de Estado de Planejamento, Orçamento e Gestão - SEPOG, Órgão Central do Sistema Operacional de Planejamento, Orçamento e Gestão no âmbito da Administração Direta e Indireta, compete:</p>
+                <p>XXII - monitorar os programas, projetos e ações do Plano Estratégico do Governo juntos às Unidades Governamentais, informando de forma periódica à Casa Civil, através de relatórios, a evolução das ações e resultados obtidos; (Acrescido pela Lei Complementar nº 1.180, de 14/3/2023);</p>
+            </div>
+            
+            <p class="recuo">Nesse contexto, informamos a realização de <strong>capacitação</strong> destinada aos servidores dos órgãos e entidades participantes, com o objetivo de orientá-los quanto à utilização das novas ferramentas de monitoramento.</p>
+            
+            <p class="recuo">A capacitação abordará os procedimentos necessários para o preenchimento e o envio das informações referentes às metas, aos resultados e aos projetos sob responsabilidade das unidades setoriais, visando garantir a adequada utilização do sistema e a qualidade dos dados disponibilizados.</p>
+            
+            <p class="recuo">A atividade será realizada no dia <strong>${dataCapacitacao}</strong>, no Laboratório de Informática da Escola de Governo, conforme a seguinte programação:</p>
+            
+            <ul class="lista-oficio">
+                <li><strong>Turma 1:</strong> ${turma1};${linkTurma1 ? ` Link de Inscrição: ${linkTurma1}` : ''}</li>
+                <li><strong>Turma 2:</strong> ${turma2}.${linkTurma2 ? ` Link de Inscrição: ${linkTurma2}` : ''}</li>
+            </ul>
+            
+            <p class="recuo">Para viabilizar a organização da atividade, solicitamos a indicação de <strong>dois servidores por órgão ou entidade</strong>, preferencialmente aqueles que atuam diretamente no acompanhamento e na atualização das informações do Planejamento Estratégico. Os nomes deverão ser encaminhados à SEPOG/GAMPP até o dia <strong>${prazoServidores}</strong>, com a identificação dos participantes e a respectiva turma de preferência, observada a disponibilidade de vagas.</p>
+            
+            <p class="recuo">As informações deverão ser inseridas no sistema pelas respectivas unidades setoriais, contemplando os dados referentes ao <strong>${periodo}</strong>. Para tanto, a alimentação do sistema deverá ser concluída impreterivelmente até o dia <strong>${dataResposta}</strong>, conforme as orientações que serão apresentadas durante a capacitação.</p>
+            
+            <p class="recuo">Para a realização dos procedimentos, serão utilizadas as seguintes ferramentas:</p>
+            
+            <ul class="lista-oficio">
+                <li><strong>I – Sistema de alimentação das informações pelas unidades setoriais:</strong> https://gerpoliticaspublicas.github.io/monitoramento-pero/</li>
+                <li><strong>II – Painel de acompanhamento do monitoramento da SEPOG:</strong> https://gerpoliticaspublicas.github.io/Dashboard-pero/</li>
+            </ul>
+            
+            <p class="recuo">Ressaltamos que o monitoramento terá caráter parcial e considera o atual processo de transição governamental. Seu objetivo é reunir e organizar as informações relativas à execução do Planejamento Estratégico em 2026, de modo a subsidiar os trabalhos durante esse período e fornecer registros atualizados para a posterior mudança de governo.</p>
+            
+            <p class="recuo">Nesse contexto, a consolidação dos dados permitirá preservar o histórico das ações realizadas, identificar os resultados alcançados e assegurar a disponibilidade de informações necessárias à continuidade do Planejamento Estratégico do Estado de Rondônia, referente ao ciclo de 2023 a 2027, contribuindo para a manutenção do andamento regular das atividades e da memória institucional.</p>
+            
+            <p class="recuo">Diante do exposto, contamos com a habitual colaboração dos órgãos e entidades envolvidos, especialmente quanto à indicação dos servidores dentro do prazo estabelecido, à participação na capacitação e ao cumprimento do prazo para alimentação do sistema, medidas essenciais para a efetividade do monitoramento.</p>
+            
+            ${tabelaMAPA}
+            
+            <p class="recuo" style="margin-top: 20px;">Colocamo-nos à disposição para eventuais esclarecimentos adicionais que se fizerem necessários.</p>
+            
+            <div class="fechamento">
+                <p class="despedida">Atenciosamente.</p>
+                <br>
+                
+                <div class="assinatura">
+                    <p class="nome">DOUGLAS VIEIRA DA SILVA</p>
+                    <p>Diretor de Gestão Estratégica e Políticas Públicas - DGEPP/SEPOG</p>
+                </div>
+                
+                <div class="assinatura">
+                    <p class="nome">BEATRIZ BASÍLIO MENDES</p>
+                    <p>Secretária de Estado do Planejamento, Orçamento e Gestão - SEPOG</p>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('texto-oficio').innerHTML = textoOficio;
+        document.getElementById('painelControle').style.display = 'none';
+        document.getElementById('oficio-area').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function copiarParaSEI() {
+        var el = document.getElementById('texto-oficio');
+        if (!el) return alert('Gere o ofício primeiro.');
+        var range = document.createRange();
+        range.selectNodeContents(el);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        try {
+            var sucesso = document.execCommand('copy');
+            if (sucesso) alert('✅ Ofício copiado com formatação! Cole no SEI/Word.');
+            else throw new Error('Falha');
+        } catch (err) {
+            alert('⚠️ Use Ctrl+C manualmente.');
+        }
+        sel.removeAllRanges();
+    }
+
+    function limparOficio() {
+        if (!confirm("Limpar o ofício atual?\n\n⚠️ Os dados do painel (unidade, período, datas) serão mantidos para gerar o próximo ofício.")) return;
+        document.getElementById('texto-oficio').innerHTML = '';
+        document.getElementById('oficio-area').style.display = 'none';
+        document.getElementById('painelControle').style.display = 'block';
+    }
+
+    function voltarPainel() {
+        document.getElementById('oficio-area').style.display = 'none';
+        document.getElementById('painelControle').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
